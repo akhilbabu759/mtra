@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "867410211046",
+    "project_id": "mtra-e89e1",
+    "storage_bucket": "mtra-e89e1.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:867410211046:android:795f3e6b3f1f127ebc4b27",
+        "android_client_info": {
+          "package_name": "com.andr"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD5E40NVbNuSeWHvZqjyaEyF-CnrAHD4F0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
