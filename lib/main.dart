@@ -1,7 +1,18 @@
-import 'package:flutter/material.dart';
+import 'dart:developer';
 import 'dart:math';
 
-void main() {
+import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter/material.dart';
+
+import 'package:mtra/firebase_options.dart';
+import 'package:mtra/firefun/firbase_fun.dart';
+import 'package:mtra/model/tramodel.dart';
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
   runApp(const TranslatorApp());
 }
 
@@ -40,56 +51,57 @@ class _TranslatorScreenState extends State<TranslatorScreen> {
   String _feedbackMessage = '';
   Color _feedbackColor = Colors.black;
   final Random _random = Random();
-  
-  // Main list of all sentences
-  List<TranslationPair> _allSentences = [
-    TranslationPair(
-      malayalam: 'എനിക്ക് മലയാളം അറിയാം',
-      english: 'I know Malayalam'
-    ),
-    TranslationPair(
-      malayalam: 'സുപ്രഭാതം',
-      english: 'Good morning'
-    ),
-    TranslationPair(
-      malayalam: 'നന്ദി',
-      english: 'Thank you'
-    )
-  ];
-  
-  // List of remaining sentences to be shown
-  late List<TranslationPair> _remainingSentences;
-  late TranslationPair _currentSentence;
+  bool isbutt = false;
+
+  // List<TranslationPair> _allSentences = [
+  //   TranslationPair(
+  //       malayalam: 'എനിക്ക് മലയാളം അറിയാം', english: 'I know Malayalam'),
+  //   TranslationPair(malayalam: 'സുപ്രഭാതം', english: 'Good morning'),
+  //   TranslationPair(malayalam: 'നന്ദി', english: 'Thank you')
+  // ];
+
+  late List<TranslationPairmodel> _remainingSentences;
+  late TranslationPairmodel _currentSentence;
 
   @override
   void initState() {
     super.initState();
+    _loadTranslations();
+    _initializeRemainingList();
+  }
+
+  List<TranslationPairmodel> _translations = [];
+
+  Future<void> _loadTranslations() async {
+    final translations = await FirebaseFunctionfecth().fetchTranslationPairs();
+    print('mm$translations');
+    // translations
+    setState(() {
+      _translations = translations;
+    });
     _initializeRemainingList();
   }
 
   void _initializeRemainingList() {
-    // Create a new list with all sentences
-    _remainingSentences = List.from(_allSentences);
+    _remainingSentences = List.from(_translations);
     _pickNewSentence();
   }
 
   void _pickNewSentence() {
     if (_remainingSentences.isEmpty) {
-      // If all sentences have been shown, reset the list
       setState(() {
         _feedbackMessage = 'All sentences completed! Starting new round. 🎉';
         _feedbackColor = Colors.green;
-        _remainingSentences = List.from(_allSentences);
+        _remainingSentences = List.from(_translations);
       });
     }
-    
-    // Pick a random sentence from remaining ones
-    final int randomIndex = _random.nextInt(_remainingSentences.length);
-    setState(() {
-      _currentSentence = _remainingSentences[randomIndex];
-      // Remove the picked sentence from remaining list
-      _remainingSentences.removeAt(randomIndex);
-    });
+    if (!_remainingSentences.isEmpty) {
+      final int randomIndex = _random.nextInt(_remainingSentences.length);
+      setState(() {
+        _currentSentence = _remainingSentences[randomIndex];
+        _remainingSentences.removeAt(randomIndex);
+      });
+    }
   }
 
   void _checkTranslation() {
@@ -100,6 +112,8 @@ class _TranslatorScreenState extends State<TranslatorScreen> {
       if (userTranslation == correctTranslation) {
         _feedbackMessage = 'Correct! Well done! 👏';
         _feedbackColor = Colors.green;
+       isbutt=true;
+        // _nextSentence();///timing
       } else {
         _feedbackMessage = 'Incorrect. Try again! 🤔';
         _feedbackColor = Colors.red;
@@ -117,93 +131,107 @@ class _TranslatorScreenState extends State<TranslatorScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        leading: GestureDetector(
+            onTap: () {
+              setState(() {
+                isbutt = !isbutt;
+              });
+            },
+            child: Text('enable')),
         title: const Text('Malayalam Translator'),
         centerTitle: true,
         actions: [
           IconButton(
-            icon: const Icon(Icons.add),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => AddSentenceScreen(
-                    onSentenceAdded: (TranslationPair newPair) {
-                      setState(() {
-                        _allSentences.add(newPair);
-                        // Add new sentence to remaining list if we're not at the end
-                        if (_remainingSentences.isNotEmpty) {
-                          _remainingSentences.add(newPair);
-                        }
-                      });
-                    },
-                  ),
-                ),
-              );
-            },
-          ),
+              onPressed: () {
+                Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (context) => AddSentenceScreen()));
+                //     onSentenceAdded: (TranslationPairmodel newPair) {
+                //   setState(() {
+                //     _translations.add(newPair);
+                //     // Add new sentence to remaining list if we're not at the end
+                //     if (_remainingSentences.isNotEmpty) {
+                //       _remainingSentences.add(newPair);
+                //     }
+                //   });
+                // })));
+              },
+              icon: Icon(Icons.add))
         ],
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // Progress indicator
-            Padding(
-              padding: const EdgeInsets.only(bottom: 16.0),
-              child: Text(
-                'Remaining sentences: ${_remainingSentences.length} / ${_allSentences.length}',
-                style: const TextStyle(fontSize: 16),
-                textAlign: TextAlign.center,
-              ),
-            ),
-            Card(
-              elevation: 4,
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Text(
-                  _currentSentence.malayalam,
-                  style: const TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          double fontSize = constraints.maxWidth > 600 ? 24 : 16;
+          double padding = constraints.maxWidth > 600 ? 32 : 16;
+          bool isLargeScreen = constraints.maxWidth > 600;
+
+          return Padding(
+            padding: EdgeInsets.all(padding),
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Padding(
+                    padding: EdgeInsets.only(bottom: padding),
+                    child: Text(
+                      'Remaining sentences: ${_remainingSentences.length} / ${_translations.length}',
+                      style: TextStyle(fontSize: fontSize),
+                      textAlign: TextAlign.center,
+                    ),
                   ),
-                  textAlign: TextAlign.center,
-                ),
+                  Card(
+                    elevation: 4,
+                    child: Padding(
+                      padding: EdgeInsets.all(padding),
+                      child: Text(
+                        _currentSentence.malayalam,
+                        style: TextStyle(
+                          fontSize: fontSize * 1.5,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ),
+                  SizedBox(height: padding),
+                  TextField(
+                    controller: _translationController,
+                    decoration: const InputDecoration(
+                      labelText: 'Enter English Translation',
+                      border: OutlineInputBorder(),
+                      hintText: 'Type your translation here...',
+                    ),
+                    maxLines: 2,
+                  ),
+                  SizedBox(height: padding),
+                  ElevatedButton(
+                    onPressed: _checkTranslation,
+                    child: const Text('Check Translation'),
+                  ),
+                  SizedBox(height: padding / 2),
+                  isbutt
+                      ? ElevatedButton(
+                          onPressed: _nextSentence,
+                          child: const Text('Next Sentence'),
+                        )
+                      : SizedBox(),
+                  SizedBox(height: padding),
+                  if (_feedbackMessage.isNotEmpty)
+                    Text(
+                      _feedbackMessage,
+                      style: TextStyle(
+                        fontSize: fontSize * 1.2,
+                        color: _feedbackColor,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                ],
               ),
             ),
-            const SizedBox(height: 20),
-            TextField(
-              controller: _translationController,
-              decoration: const InputDecoration(
-                labelText: 'Enter English Translation',
-                border: OutlineInputBorder(),
-                hintText: 'Type your translation here...',
-              ),
-              maxLines: 2,
-            ),
-            const SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: _checkTranslation,
-              child: const Text('Check Translation'),
-            ),
-            const SizedBox(height: 10),
-            ElevatedButton(
-              onPressed: _nextSentence,
-              child: const Text('Next Sentence'),
-            ),
-            const SizedBox(height: 20),
-            if (_feedbackMessage.isNotEmpty)
-              Text(
-                _feedbackMessage,
-                style: TextStyle(
-                  fontSize: 18,
-                  color: _feedbackColor,
-                  fontWeight: FontWeight.bold,
-                ),
-                textAlign: TextAlign.center,
-              ),
-          ],
-        ),
+          );
+        },
       ),
     );
   }
@@ -216,9 +244,11 @@ class _TranslatorScreenState extends State<TranslatorScreen> {
 }
 
 class AddSentenceScreen extends StatefulWidget {
-  final Function(TranslationPair) onSentenceAdded;
+  // final Function(TranslationPair) onSentenceAdded;
 
-  const AddSentenceScreen({super.key, required this.onSentenceAdded});
+  const AddSentenceScreen({
+    super.key,
+  });
 
   @override
   State<AddSentenceScreen> createState() => _AddSentenceScreenState();
@@ -235,64 +265,77 @@ class _AddSentenceScreenState extends State<AddSentenceScreen> {
       appBar: AppBar(
         title: const Text('Add New Sentence'),
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              TextFormField(
-                controller: _malayalamController,
-                decoration: const InputDecoration(
-                  labelText: 'Malayalam Sentence',
-                  border: OutlineInputBorder(),
-                ),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter a Malayalam sentence';
-                  }
-                  return null;
-                },
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          double padding = constraints.maxWidth > 600 ? 32 : 16;
+          bool isLargeScreen = constraints.maxWidth > 600;
+
+          return Padding(
+            padding: EdgeInsets.all(padding),
+            child: Form(
+              key: _formKey,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  TextFormField(
+                    controller: _malayalamController,
+                    decoration: const InputDecoration(
+                      labelText: 'Malayalam Sentence',
+                      border: OutlineInputBorder(),
+                    ),
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Please enter a Malayalam sentence';
+                      }
+                      return null;
+                    },
+                  ),
+                  SizedBox(height: padding),
+                  TextFormField(
+                    controller: _englishController,
+                    decoration: const InputDecoration(
+                      labelText: 'English Translation',
+                      border: OutlineInputBorder(),
+                    ),
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Please enter an English translation';
+                      }
+                      return null;
+                    },
+                  ),
+                  SizedBox(height: padding),
+                  ElevatedButton(
+                    onPressed: () {
+                      if (_formKey.currentState!.validate()) {
+                        // widget.onSentenceAdded(
+                        //   TranslationPair(
+                        //     malayalam: _malayalamController.text,
+                        //     english: _englishController.text,
+                        //   ),
+                        // );
+                        FirebaseFunctionfecth().addTranslationPair(
+                          TranslationPairmodel(
+                            malayalam: _malayalamController.text,
+                            english: _englishController.text,
+                          ),
+                        );
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Sentence added successfully!'),
+                            backgroundColor: Colors.green,
+                          ),
+                        );
+                        Navigator.pop(context);
+                      }
+                    },
+                    child: const Text('Add Sentence'),
+                  ),
+                ],
               ),
-              const SizedBox(height: 20),
-              TextFormField(
-                controller: _englishController,
-                decoration: const InputDecoration(
-                  labelText: 'English Translation',
-                  border: OutlineInputBorder(),
-                ),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter an English translation';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 20),
-              ElevatedButton(
-                onPressed: () {
-                  if (_formKey.currentState!.validate()) {
-                    widget.onSentenceAdded(
-                      TranslationPair(
-                        malayalam: _malayalamController.text,
-                        english: _englishController.text,
-                      ),
-                    );
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Sentence added successfully!'),
-                        backgroundColor: Colors.green,
-                      ),
-                    );
-                    Navigator.pop(context);
-                  }
-                },
-                child: const Text('Add Sentence'),
-              ),
-            ],
-          ),
-        ),
+            ),
+          );
+        },
       ),
     );
   }
